@@ -201,11 +201,13 @@
         function startGame() {
             lives = 3;
             score = 0;
+            timeLeft = 30;
             homeView.classList.add('hidden');
             resultView.classList.add('hidden');
             gameView.classList.remove('hidden');
             
             updateStatsUI();
+            startTimer();
             generateQuestion();
         }
 
@@ -274,22 +276,28 @@
                 btn.textContent = optionsList[index];
             });
 
+            // 確保正常題目開始時必定啟動/繼續計時器
             startTimer();
         }
 
         function startTimer() {
             clearInterval(timerInterval);
-            timeLeft = 30;
+            if (timeLeft <= 0) return; // 沒有時間則不啟動
+            
             timerDisplay.textContent = timeLeft;
-            timerDisplay.parentElement.classList.remove('animate-pulse', 'text-red-600');
-            timerDisplay.parentElement.classList.add('text-red-500');
+            
+            if (timeLeft > 5) {
+                timerDisplay.parentElement.classList.remove('animate-pulse', 'text-red-600');
+                timerDisplay.parentElement.classList.add('text-red-500');
+            }
             
             timerInterval = setInterval(() => {
                 timeLeft--;
                 timerDisplay.textContent = timeLeft;
                 
-                if (timeLeft <= 5) {
+                if (timeLeft <= 5 && timeLeft > 0) {
                     timerDisplay.parentElement.classList.add('animate-pulse', 'text-red-600');
+                    timerDisplay.parentElement.classList.remove('text-red-500');
                 }
                 
                 if (timeLeft <= 0) {
@@ -300,12 +308,9 @@
         }
 
         function handleTimeOut() {
-            if (!isQuestionActive) return;
             isQuestionActive = false;
             
-            // Lose a life
-            lives--;
-            updateStatsUI();
+            timerDisplay.parentElement.classList.remove('animate-pulse');
             
             feedbackMessage.textContent = "⏱️ 時間到！";
             feedbackMessage.className = "text-xl font-bold mb-4 text-red-500";
@@ -323,7 +328,9 @@
             if (selectedVal === currentQuestion.correct) {
                 // Correct Answer!
                 isQuestionActive = false;
-                clearInterval(timerInterval);
+                clearInterval(timerInterval); // 答對時暫停時間
+                timerDisplay.parentElement.classList.remove('animate-pulse');
+                
                 score += 10;
                 updateStatsUI();
                 
@@ -346,7 +353,9 @@
                 if (wrongAttempts >= 2) {
                     // Failed twice
                     isQuestionActive = false;
-                    clearInterval(timerInterval);
+                    clearInterval(timerInterval); // 顯示正確答案時暫停時間
+                    timerDisplay.parentElement.classList.remove('animate-pulse');
+                    
                     lives--;
                     updateStatsUI();
                     
@@ -386,7 +395,7 @@
             nextContainer.classList.remove('hidden');
             nextBtn.classList.remove('hidden');
             
-            if (lives <= 0) {
+            if (lives <= 0 || timeLeft <= 0) {
                 nextBtn.textContent = "查看成績 📊";
                 nextBtn.className = "bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold py-3 px-8 rounded-full shadow-md hover:shadow-lg btn-transition";
             } else {
@@ -407,7 +416,7 @@
         }
 
         function nextQuestion() {
-            if (lives <= 0) {
+            if (lives <= 0 || timeLeft <= 0) {
                 endGame();
             } else {
                 generateQuestion();
@@ -422,27 +431,15 @@
 
         // Home Confirmation Logic
         function confirmGoHome() {
-            if (timerInterval) clearInterval(timerInterval);
+            clearInterval(timerInterval);
             confirmModal.classList.remove('hidden');
         }
 
         function cancelGoHome() {
             confirmModal.classList.add('hidden');
-            if (isQuestionActive) {
-                // Resume timer
-                timerInterval = setInterval(() => {
-                    timeLeft--;
-                    timerDisplay.textContent = timeLeft;
-                    
-                    if (timeLeft <= 5) {
-                        timerDisplay.parentElement.classList.add('animate-pulse', 'text-red-600');
-                    }
-                    
-                    if (timeLeft <= 0) {
-                        clearInterval(timerInterval);
-                        handleTimeOut();
-                    }
-                }, 1000);
+            if (isQuestionActive && timeLeft > 0) {
+                // 若取消返回主頁，且題目仍在進行中，則恢復計時
+                startTimer();
             }
         }
 
